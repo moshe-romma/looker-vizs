@@ -35,9 +35,7 @@ looker.plugins.visualizations.add({
   },
 
   create: function (element, config) {
-    element.innerHTML = "";
-    const container = document.createElement("div");
-    container.id = "black-box-container";
+    var container = document.createElement("div");
     container.style.display = "flex";
     container.style.flexWrap = "wrap";
     container.style.alignItems = "center";
@@ -47,55 +45,71 @@ looker.plugins.visualizations.add({
     container.style.padding = "12px";
     container.style.boxSizing = "border-box";
     element.appendChild(container);
+    // Store reference directly on element to avoid getElementById
+    this._container = container;
   },
 
   updateAsync: function (data, element, config, queryResponse, details, done) {
-    const container = document.getElementById("black-box-container");
+    // Use stored reference instead of getElementById
+    var container = this._container;
+    if (!container) {
+      done();
+      return;
+    }
     container.innerHTML = "";
 
-    const boxWidth = config.box_width || 200;
-    const boxHeight = config.box_height || 60;
-    const boxGap = config.box_gap || 12;
-    const fontSize = config.font_size || 16;
-    const borderRadius = config.border_radius || 4;
+    var boxWidth = (config && config.box_width) || 200;
+    var boxHeight = (config && config.box_height) || 60;
+    var boxGap = (config && config.box_gap) || 12;
+    var fontSize = (config && config.font_size) || 16;
+    var borderRadius = (config && config.border_radius) || 4;
 
     // Get the first dimension from the query response
-    const dimension = queryResponse.fields.dimension_like[0];
-    if (!dimension) {
-      container.innerHTML = '<p style="color:red;">No categorical dimension found.</p>';
+    if (
+      !queryResponse ||
+      !queryResponse.fields ||
+      !queryResponse.fields.dimension_like ||
+      queryResponse.fields.dimension_like.length === 0
+    ) {
+      container.innerHTML =
+        '<p style="color:red;">No categorical dimension found.</p>';
       done();
       return;
     }
 
-    const fieldName = dimension.name;
+    var fieldName = queryResponse.fields.dimension_like[0].name;
 
-    data.forEach(function (row) {
-      const value = row[fieldName].value;
-      const rendered = row[fieldName].rendered || String(value);
+    for (var i = 0; i < data.length; i++) {
+      var row = data[i];
+      if (!row[fieldName]) continue;
 
-      const box = document.createElement("div");
-      box.style.width = boxWidth + "px";
-      box.style.height = boxHeight + "px";
-      box.style.backgroundColor = "#000000";
-      box.style.color = "#FFFFFF";
-      box.style.display = "flex";
-      box.style.alignItems = "center";
-      box.style.justifyContent = "center";
-      box.style.margin = (boxGap / 2) + "px";
-      box.style.borderRadius = borderRadius + "px";
-      box.style.fontSize = fontSize + "px";
-      box.style.fontFamily = "'Open Sans', Helvetica, Arial, sans-serif";
-      box.style.fontWeight = "600";
-      box.style.textAlign = "center";
-      box.style.padding = "8px";
-      box.style.boxSizing = "border-box";
-      box.style.overflow = "hidden";
-      box.style.textOverflow = "ellipsis";
+      var value = row[fieldName].value;
+      var rendered = row[fieldName].rendered || String(value);
+
+      var box = document.createElement("div");
+      box.style.cssText =
+        "width:" + boxWidth + "px;" +
+        "height:" + boxHeight + "px;" +
+        "background-color:#000000;" +
+        "color:#FFFFFF;" +
+        "display:flex;" +
+        "align-items:center;" +
+        "justify-content:center;" +
+        "margin:" + (boxGap / 2) + "px;" +
+        "border-radius:" + borderRadius + "px;" +
+        "font-size:" + fontSize + "px;" +
+        "font-family:'Open Sans',Helvetica,Arial,sans-serif;" +
+        "font-weight:600;" +
+        "text-align:center;" +
+        "padding:8px;" +
+        "box-sizing:border-box;" +
+        "overflow:hidden;" +
+        "text-overflow:ellipsis;";
+
       box.title = rendered;
-
       box.innerText = rendered;
       container.appendChild(box);
-    });
+    }
 
     done();
   },
